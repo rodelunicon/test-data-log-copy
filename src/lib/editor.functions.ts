@@ -59,19 +59,6 @@ export const changeEditorCredentials = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-export const addEditorCredentials = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => credentials.parse(input))
-  .handler(async ({ data }) => {
-    const { requireEditor, addEditorAccount } = await import("@/lib/editor.server");
-    await requireEditor();
-    try {
-      await addEditorAccount(data.username, data.password);
-      return { ok: true as const };
-    } catch (error) {
-      return { ok: false as const, error: error instanceof Error ? error.message : "Could not add editor" };
-    }
-  });
-
 async function validateMachineStatus(machine: string, status: string) {
   const { listMachines } = await import("@/lib/machine-status.server");
   const found = (await listMachines()).find((m) => m.name === machine);

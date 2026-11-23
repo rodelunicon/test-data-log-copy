@@ -6,8 +6,13 @@ import { splitLogsAtShiftCutoffs } from "@/lib/machine-status.server";
 type EditorSession = { editor?: boolean; username?: string };
 
 function sessionConfig() {
+  const password = process.env["EDITOR_SESSION_SECRET"];
+  if (!password || password.length < 32) {
+    throw new Error("EDITOR_SESSION_SECRET must be set to a secret of at least 32 characters");
+  }
+
   return {
-    password: process.env["EDITOR_SESSION_SECRET"]!,
+    password,
     name: "log-editor",
     maxAge: 60 * 60 * 8,
     cookie: { httpOnly: true, secure: true, sameSite: "none" as const, path: "/" },
@@ -75,20 +80,6 @@ export async function saveCredentials(currentUsername: string, username: string,
       updated_at: new Date().toISOString(),
     })
     .ilike("username", currentUsername);
-  if (error) throw new Error(error.message);
-}
-
-export async function addEditorAccount(username: string, password: string) {
-  const normalized = username.trim();
-  const existing = await readAccount(normalized);
-  if (existing) throw new Error("That username is already in use");
-
-  const salt = randomBytes(16).toString("hex");
-  const { error } = await db().from("editor_account").insert({
-    username: normalized,
-    password_salt: salt,
-    password_hash: hash(password, salt),
-  });
   if (error) throw new Error(error.message);
 }
 
