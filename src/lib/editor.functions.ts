@@ -54,9 +54,22 @@ export const changeEditorCredentials = createServerFn({ method: "POST" })
     if (!(await verifyCredentials(editor.username, data.current_password))) {
       return { ok: false as const, error: "Current password is incorrect" };
     }
-    await saveCredentials(data.username, data.password);
+    await saveCredentials(editor.username, data.username, data.password);
     await startEditorSession(data.username.trim());
     return { ok: true as const };
+  });
+
+export const addEditorCredentials = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => credentials.parse(input))
+  .handler(async ({ data }) => {
+    const { requireEditor, addEditorAccount } = await import("@/lib/editor.server");
+    await requireEditor();
+    try {
+      await addEditorAccount(data.username, data.password);
+      return { ok: true as const };
+    } catch (error) {
+      return { ok: false as const, error: error instanceof Error ? error.message : "Could not add editor" };
+    }
   });
 
 async function validateMachineStatus(machine: string, status: string) {

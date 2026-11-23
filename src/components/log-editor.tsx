@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  addEditorCredentials,
   changeEditorCredentials,
   editorSignIn,
   editorSignOut,
@@ -163,16 +164,19 @@ function AccountDialog({
   current: string;
 }) {
   const save = useServerFn(changeEditorCredentials);
+  const add = useServerFn(addEditorCredentials);
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addBusy, setAddBusy] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Change editor login</DialogTitle>
-          <DialogDescription>Update the username and password used to edit logs.</DialogDescription>
+          <DialogTitle>Editor accounts</DialogTitle>
+          <DialogDescription>Update this login or add another editor account.</DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"
@@ -226,6 +230,55 @@ function AccountDialog({
             </button>
           </DialogFooter>
         </form>
+        <div className="border-t border-border pt-4">
+          <p className="mb-3 text-sm font-semibold">Add another editor</p>
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const password = String(fd.get("add_password"));
+              if (password !== String(fd.get("add_confirm"))) return setAddError("Passwords do not match");
+              setAddBusy(true);
+              setAddError(null);
+              try {
+                const res = await add({
+                  data: {
+                    username: String(fd.get("add_username")),
+                    password,
+                  },
+                });
+                if (!res.ok) setAddError(res.error);
+                else {
+                  e.currentTarget.reset();
+                }
+              } catch {
+                setAddError("Username needs 3+ characters and password 6+ characters.");
+              } finally {
+                setAddBusy(false);
+              }
+            }}
+          >
+            <label className="block">
+              <span className={labelCls}>Username</span>
+              <input name="add_username" required minLength={3} maxLength={64} className={inputCls} />
+            </label>
+            <label className="block">
+              <span className={labelCls}>Password</span>
+              <PasswordInput name="add_password" required minLength={6} maxLength={128} autoComplete="new-password" className={inputCls} />
+            </label>
+            <label className="block">
+              <span className={labelCls}>Confirm password</span>
+              <PasswordInput name="add_confirm" required minLength={6} maxLength={128} autoComplete="new-password" className={inputCls} />
+            </label>
+            {addError && <p className="text-sm text-destructive">{addError}</p>}
+            <DialogFooter>
+              <button type="submit" disabled={addBusy} className={primaryBtn}>
+                {addBusy ? "Adding…" : "Add editor"}
+              </button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

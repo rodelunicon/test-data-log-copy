@@ -16,21 +16,24 @@ export type Database = {
     Tables: {
       editor_account: {
         Row: {
-          id: number
+          account_id: string
+          id: number | null
           password_hash: string
           password_salt: string
           updated_at: string
           username: string
         }
         Insert: {
-          id?: number
+          account_id?: string
+          id?: number | null
           password_hash: string
           password_salt: string
           updated_at?: string
           username: string
         }
         Update: {
-          id?: number
+          account_id?: string
+          id?: number | null
           password_hash?: string
           password_salt?: string
           updated_at?: string

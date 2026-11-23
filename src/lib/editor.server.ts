@@ -21,18 +21,21 @@ function hash(password: string, salt: string) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = () => supabaseAdmin as any;
 
-async function readAccount() {
-  const { data, error } = await db()
+async function readAccount(username?: string) {
+  let query = db()
     .from("editor_account")
-    .select("username, password_salt, password_hash")
-    .eq("id", 1)
-    .single();
+    .select("username, password_salt, password_hash");
+  if (username) {
+    query = query.ilike("username", username.trim());
+  }
+  const { data, error } = await query.limit(1).maybeSingle();
   if (error) throw new Error(error.message);
-  return data as { username: string; password_salt: string; password_hash: string };
+  return data as { username: string; password_salt: string; password_hash: string } | null;
 }
 
 export async function verifyCredentials(username: string, password: string) {
-  const acc = await readAccount();
+  const acc = await readAccount(username);
+  if (!acc) return null;
   const a = Buffer.from(hash(password, acc.password_salt), "hex");
   const b = Buffer.from(acc.password_hash, "hex");
   const passOk = a.length === b.length && timingSafeEqual(a, b);
@@ -61,7 +64,7 @@ export async function endEditorSession() {
   await session.clear();
 }
 
-export async function saveCredentials(username: string, password: string) {
+export async function saveCredentials(currentUsername: string, username: string, password: string) {
   const salt = randomBytes(16).toString("hex");
   const { error } = await db()
     .from("editor_account")
@@ -71,7 +74,21 @@ export async function saveCredentials(username: string, password: string) {
       password_hash: hash(password, salt),
       updated_at: new Date().toISOString(),
     })
-    .eq("id", 1);
+    .ilike("username", currentUsername);
+  if (error) throw new Error(error.message);
+}
+
+export async function addEditorAccount(username: string, password: string) {
+  const normalized = username.trim();
+  const existing = await readAccount(normalized);
+  if (existing) throw new Error("That username is already in use");
+
+  const salt = randomBytes(16).toString("hex");
+  const { error } = await db().from("editor_account").insert({
+    username: normalized,
+    password_salt: salt,
+    password_hash: hash(password, salt),
+  });
   if (error) throw new Error(error.message);
 }
 
